@@ -4,7 +4,7 @@ project(homework0)
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
-set(CMAKE_BUILD_TYPE Debug)
+# set(CMAKE_BUILD_TYPE Debug)
 
 find_library(GLUT_LIBRARY GLUT)
 find_library(OpenGL_LIBRARY OpenGL)

@@ -29,18 +29,45 @@
 #include <GL/glut.h>
 #endif
 
+#include <vector>
 #include <utility> // For std::pair
 
+typedef std::vector<std::pair<GLint, GLint> > Vertices;
+
 namespace shelby {
-  void drawShelby(std::pair<size_t,size_t> position);
 
-  /***** Drawing each part of Shelby *****/
+  /***** Shelby Center Class *****/
+  class ShelbyCenter
+  {
+  public:
+    ShelbyCenter (GLfloat size_x = 800.0f, GLfloat size_y = 600.0f);
+    virtual ~ShelbyCenter ();
 
-  void drawNWShelby(std::pair<size_t,size_t> position);
-  void drawNShelby(std::pair<size_t,size_t> position);
-  void drawNEShelby(std::pair<size_t,size_t> position);
-  void drawSWShelby(std::pair<size_t,size_t> position);
-  void drawSEShelby(std::pair<size_t,size_t> position);
+    void draw();
+
+  private:
+    void drawCenter();
+    void drawNW();
+    void drawSW();
+    void drawTriangle(GLint x1, GLint y1,
+                      GLint x2, GLint y2,
+                      GLint x3, GLint y3,
+                      GLfloat r, GLfloat b, GLfloat g);
+
+    void drawQuad(GLint x1, GLint y1,
+                  GLint x2, GLint y2,
+                  GLint x3, GLint y3,
+                  GLint x4, GLint y4,
+                  GLfloat r, GLfloat b, GLfloat g);
+
+    void drawTriangleStrip(Vertices &verts,
+                           GLfloat r, GLfloat b, GLfloat g);
+
+    // Width and Height
+    GLfloat w_, h_;
+    bool mirror_x_;
+  };
+
 }
 
 #endif // SHELBY_H
