@@ -1,54 +1,26 @@
-# Homework 0
+# Homework 2
 
 ## Description
 
-The objective of homework 0 is to get opengl installed and tested using code from the textbook's chapter 2.
-
-### contour
-
-The contour program generates contours using marching squares.
-
-### gasket
-
-The gasket program generates a two-dimensional Sierpinski Gasket.
-
-### gasket2
-
-The gasket2 program generates a two-dimensional Sierpinski Gasket and can take an integer from the command line to define the number of recursions, defaults to 5.
-
-### gasket3
-
-The gasket3 program generates a three-dimensional Sierpinski Gasket and can take an integer from the command line to define the number of recursions, defaults to 5.
-
-### tetra
-
-The tetra program generates a three-dimensional Sierpinski Gasket.
+The objective of homework 2 is to use the Translate, Scale, and Rotate transforms as well as the GL_SMOOTH mode.
 
 ## Building
 
-Go into the homework0 folder:
+To build my project you need the following Dependencies:
 
-    cd homework0
+* gnu make
+* cmake
+* opengl
+* glut or freeglut
 
-Compile the code:
+If you have those dependencies then you can build by running:
 
-    make
+   make
 
-Clean the code:
+In the terminal in the root of my project directory.
 
-    make clean
+Optionally you can run cmake manually by opening the cmake-gui and pointing the source directory to my homework folder, and then selecting a build directory.  Then you can click configure, select VS or unix makefile, finish the wizard, and then click generate.  Then you can close cmake-gui and build my project with VS or unix make (depending on the one you selected).
 
-## Running the code
+## Running
 
-Executables are stored in the `bin` folder:
-
-    cd bin
-
-Run any of the programs and do ctrl-c to end them:
-
-    ./contour
-    ./gasket
-    ./gasket2
-    ./gasket3
-    ./tetra
-
+After building the project an executable called shelby(.exe) should be in the bin/ folder.  Execute it.
