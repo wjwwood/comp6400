@@ -78,7 +78,7 @@ void OnKeyboardPress(unsigned char key, int x, int y) {
           person.move(-move_speed);
           break;
         case 45:
-          person.scale(0.1);
+          person.scale(0.9);
           break;
         case 61:
           person.scale(1.1);
