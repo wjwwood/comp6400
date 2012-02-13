@@ -15,7 +15,7 @@ To build my project you need the following Dependencies:
 
 If you have those dependencies then you can build by running:
 
-   make
+    make
 
 In the terminal in the root of my project directory.
 
