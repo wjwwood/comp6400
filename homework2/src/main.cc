@@ -5,6 +5,8 @@
 #include <windows.h>
 #endif
 
+#include <stdlib.h>
+
 // OpenGL
 #ifdef __APPLE__
 #include <GLUT/glut.h>

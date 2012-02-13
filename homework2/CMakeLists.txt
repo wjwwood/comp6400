@@ -13,11 +13,9 @@ if(NOT OPENGL_FOUND)
 endif(NOT OPENGL_FOUND)
 
 find_package(GLUT REQUIRED)
-if(NOT GLUT_FOUND)
-    message(FATAL_ERROR "GLUT not found!")
-endif(NOT GLUT_FOUND)
 
-include_directories(${OPENGL_INCLUDE_DIR} ${GLUT_INCLUDE_DIR})
+
+#include_directories(${OPENGL_INCLUDE_DIR} ${GLUT_INCLUDE_DIR})
 
 # Shelby Model
 include_directories(include)
