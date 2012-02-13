@@ -15,6 +15,7 @@ ifneq ($(MAKE),)
 else
 	cd build && make
 endif
+	bin/shelby
 
 clean:
 	-cd build && make clean

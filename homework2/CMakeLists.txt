@@ -11,6 +11,6 @@ find_library(OpenGL_LIBRARY OpenGL)
 
 # Shelby Model
 include_directories(include)
-add_executable(shelby src/main.cc src/shelby.cc)
+add_executable(shelby src/main.cc src/shelby.cc src/person.cc src/drawing_tools.cc)
 target_link_libraries(shelby ${OpenGL_LIBRARY} ${GLUT_LIBRARY})
 

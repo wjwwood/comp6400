@@ -20,8 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef SHELBY_H
-#define SHELBY_H
+#ifndef SHELBY_PERSON_H
+#define SHELBY_PERSON_H
 
 #ifdef __APPLE__
 #include <GLUT/glut.h>
@@ -33,21 +33,23 @@
 
 namespace shelby {
 
-  /***** Shelby Center Class *****/
-  class ShelbyCenter
-  {
+  /***** Person Class *****/
+  class Person {
   public:
-    ShelbyCenter ();
-    virtual ~ShelbyCenter ();
+    Person (GLfloat initial_x = 0.0f,
+            GLfloat initial_y = 0.0f,
+            GLfloat initial_rotation = 0.0f);
+    ~Person ();
 
     void draw();
 
-    GLfloat y_offset, x_offset;
+    void move(float distance = 5.0f);
+    void rotate(float degrees = 10.0f);
+    void scale(float scalar = 1.0f);
+
   private:
-    void drawCenterBuilding();
-    void drawNorthWestBuilding();
-    void drawSouthWestBuilding();
-    void drawGrassArea(GLfloat x, GLfloat y);
+    GLfloat x_, y_, rotation_, scale_;
+    bool left_foot_forward;
   };
 
 }
