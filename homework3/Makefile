@@ -1,4 +1,4 @@
-all: homework0
+all: homework3
 
 install:
 	cd build && make install
@@ -6,7 +6,7 @@ install:
 uninstall:
 	cd build && make uninstall
 
-homework0:
+homework3:
 	@mkdir -p build
 	-mkdir -p bin
 	cd build && cmake $(CMAKE_FLAGS) ..
@@ -15,7 +15,7 @@ ifneq ($(MAKE),)
 else
 	cd build && make
 endif
-	bin/shelby
+	bin/homework3
 
 clean:
 	-cd build && make clean

@@ -15,9 +15,8 @@ endif(NOT OPENGL_FOUND)
 find_package(GLUT REQUIRED)
 
 
-#include_directories(${OPENGL_INCLUDE_DIR} ${GLUT_INCLUDE_DIR})
+include_directories(${OPENGL_INCLUDE_DIR} ${GLUT_INCLUDE_DIR})
 
-# Shelby Model
-include_directories(include)
-add_executable(shelby src/main.cc src/shelby.cc src/person.cc src/drawing_tools.cc)
-target_link_libraries(shelby ${OPENGL_LIBRARIES} ${GLUT_LIBRARIES})
+# Homework 3
+add_executable(homework3 src/main.cc)
+target_link_libraries(homework3 ${OPENGL_LIBRARIES} ${GLUT_LIBRARIES})
