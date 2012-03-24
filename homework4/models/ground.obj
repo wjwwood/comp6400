@@ -1,0 +1,11 @@
+# Blender v2.58 (sub 1) OBJ File: ''
+# www.blender.org
+mtllib ground.mtl
+o Plane
+v 49.999996 0.000000 -49.999989
+v 49.999996 0.000000 49.999989
+v -50.000008 0.000000 49.999985
+v -49.999981 0.000000 -50.000011
+usemtl Material
+s off
+f 1 4 3 2
