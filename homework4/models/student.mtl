@@ -1,19 +1,19 @@
-# Blender MTL File: 'shelby.blend'
+# Blender MTL File: 'student.blend'
 # Material Count: 2
-newmtl Concrete
+newmtl BlueJeans
 Ns 96.078431
 Ka 0.000000 0.000000 0.000000
-Kd 0.343373 0.336899 0.341755
+Kd 0.000000 0.210348 0.640000
 Ks 0.500000 0.500000 0.500000
 Ni 1.000000
 d 1.000000
 illum 2
 
 
-newmtl Grass
+newmtl shirt
 Ns 96.078431
 Ka 0.000000 0.000000 0.000000
-Kd 0.000000 0.156786 0.012083
+Kd 0.800000 0.133656 0.010883
 Ks 0.500000 0.500000 0.500000
 Ni 1.000000
 d 1.000000
