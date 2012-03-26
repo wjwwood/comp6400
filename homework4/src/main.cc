@@ -110,7 +110,7 @@ GLint window_width = 800;
 GLint window_height = 800;
 
 /* Set this to the directory containing the model files. */
-string model_path = "/Users/william/devel/comp6400/homework4/models/";
+string model_path = "models/";
 
 /***
  * Utility Classes and Functions
@@ -161,9 +161,14 @@ public:
       vector<Face>::iterator face_it = (*obj_it).faces.begin();
       for (; face_it != (*obj_it).faces.end(); face_it++) {
         // Draw triangles using the vertex indices
-        glBegin(GL_QUADS);
+		size_t number_of_verticies = (*face_it).verterx_indices.size();
+		if (number_of_verticies == 3) {
+		  glBegin(GL_TRIANGLES);
+		} else {
+          glBegin(GL_QUADS);
+		}
           // For vertex in face
-          for (int i = 0; i < 4; ++i) {
+          for (int i = 0; i < number_of_verticies; ++i) {
             size_t index = (*face_it).verterx_indices[i] - 1;
             Vertex v;
             try {
@@ -378,12 +383,21 @@ private:
                                     &face.verterx_indices[2],
                                     &face.verterx_indices[3]);
             if (matches != 4) {
-              cerr << "Failed to parse f element at line "
-                 << obj_current_line << " of file "
-                 << (model_path+obj_file_name) 
-                 << ": sscanf matched " << matches
-                 << " elements but expected 4." << endl;
-              return false;
+			  // Try 3
+			  face.verterx_indices.clear();
+			  face.verterx_indices.resize(3);
+			  matches = sscanf(line.c_str(), "f %i %i %i",
+                               &face.verterx_indices[0],
+                               &face.verterx_indices[1],
+                               &face.verterx_indices[2]);
+			  if (matches != 3) {
+                cerr << "Failed to parse f element at line "
+                   << obj_current_line << " of file "
+                   << (model_path+obj_file_name) 
+                   << ": sscanf matched " << matches
+                   << " elements but expected 3 or 4." << endl;
+                return false;
+			  }
             }
             current_object.faces.push_back(face);
           }
