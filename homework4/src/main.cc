@@ -49,8 +49,9 @@
 /*!
  * Instructions
  * ============
- * Set the model path string below to the the directory containing 
- * models like ground.obj.
+ * ASDW and the arrow keys move the student.
+ * Click and drag the mouse to pan and tilt the camera.
+ * The scroll wheel or the - and + keys will zoom the camera.
  */
 
 /***
