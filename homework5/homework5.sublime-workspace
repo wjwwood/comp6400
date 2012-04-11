@@ -1,0 +1,300 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+			[
+				"QwtPlot",
+				"QwtPlotZoomer"
+			],
+			[
+				"__init",
+				"__initZooming"
+			],
+			[
+				"plot_coi",
+				"plot_coil2"
+			],
+			[
+				"plo",
+				"plot_coil1"
+			],
+			[
+				"plot_co",
+				"plot_coil2"
+			],
+			[
+				"QwtPl",
+				"QwtPlotCurve"
+			],
+			[
+				"trail",
+				"trailer_plotcurve"
+			],
+			[
+				"pl",
+				"plot_coil1"
+			],
+			[
+				"plot",
+				"plot_coil1"
+			],
+			[
+				"open",
+				"open_button"
+			],
+			[
+				"plotcoi",
+				"plot_coil1"
+			],
+			[
+				"EM",
+				"EM61MK2Log"
+			],
+			[
+				"pa",
+				"path_file_name"
+			],
+			[
+				"head",
+				"headings"
+			],
+			[
+				"eas",
+				"eastings"
+			],
+			[
+				"north",
+				"northings"
+			],
+			[
+				"las",
+				"last_east"
+			],
+			[
+				"odom",
+				"odom"
+			],
+			[
+				"logs",
+				"logs_data"
+			],
+			[
+				"plot_",
+				"plot_em61mk2logs"
+			],
+			[
+				"Em61",
+				"EM61MK2Log"
+			],
+			[
+				"sib",
+				"sibling_file_name"
+			],
+			[
+				"si",
+				"sibling_file_name"
+			],
+			[
+				"fil",
+				"file_name"
+			]
+		]
+	},
+	"buffers":
+	[
+	],
+	"build_system": "Packages/Makefile/Make.sublime-build",
+	"command_palette":
+	{
+		"height": 47.0,
+		"selected_items":
+		[
+			[
+				"install",
+				"Package Control: Install Package"
+			],
+			[
+				"late",
+				"LaTeXTools: View PDF"
+			]
+		],
+		"width": 449.0
+	},
+	"console":
+	{
+		"height": 0.0
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"file_history":
+	[
+		"/Users/william/devel/comp6400/homework5/src/main.cc",
+		"/Users/william/devel/comp6400/homework5/models/shelby.blend",
+		"/Users/william/devel/comp6400/homework5/Makefile",
+		"/Users/william/devel/comp6400/homework5/CMakeLists.txt",
+		"/usr/include/c++/4.2.1/tr1/cstdio",
+		"/Users/william/devel/comp6400/homework5/homework5.sublime-project",
+		"/Users/william/devel/comp6400/homework5/src/michaels.cc",
+		"/Users/william/devel/auxos_orig/scripts/plot_em.py",
+		"/Users/william/devel/auxos_orig/scripts/logtool.py",
+		"/Users/william/devel/auxos_orig/scripts/em61mk2.py",
+		"/Users/william/devel/auxos_orig/scripts/lib/__init__.py",
+		"/usr/local/Library/Formula/pyqt.rb",
+		"/usr/local/Library/Formula/pyqwt.rb",
+		"/Users/william/devel/3dteleop_ws/3d_teleop/redo_slam_offline/launch/play_and_remap_tf.launch",
+		"/Users/william/devel/3dteleop_ws/3d_teleop/misc_scripts/launch/automow_stuff.launch",
+		"/Users/william/devel/auxos_orig/scripts/coords2path.py",
+		"/Users/william/Downloads/sup1_waypts_utm_path.txt",
+		"/Users/william/Downloads/example.txt",
+		"/Users/william/devel/auxos_orig/scripts/sup1_waypts_utm_path.txt",
+		"/Users/william/devel/ion_plans_paper/citations.bib",
+		"/Users/william/devel/ion_plans_paper/ion_plans.tex",
+		"/Users/william/Desktop/em61mk2.py",
+		"/Users/william/devel/ion_plans_paper/ion_plans.log",
+		"/Users/william/devel/ion_plans_paper/ion_plans.pdf",
+		"/Users/william/devel/3dteleop_ws/octomap/octomap/include/octomap/OcTree.h",
+		"/Users/william/devel/3dteleop_ws/octomap/octomap/include/octomap/OccupancyOcTreeBase.h",
+		"/Users/william/devel/3dteleop_ws/octomap/octomap/include/octomap/OccupancyOcTreeBase.hxx",
+		"/Users/william/devel/3dteleop_ws/octomap/octomap/src/OcTree.cpp",
+		"/Users/william/devel/3dteleop_ws/octomap/octomap/include/octomap/octomap_deprecated.h",
+		"/Users/william/devel/3dteleop_ws/octomap/CMakeLists.txt",
+		"/Users/william/devel/comp6400/homework3/src/main.cc",
+		"/Users/william/Desktop/untitled.obj",
+		"/Users/william/devel/cs373-tests/util.py",
+		"/Users/william/devel/cs373-tests/2.6/code.py",
+		"/Users/william/devel/cs373-tests/2.6/template.py",
+		"/Users/william/devel/3dteleop_ws/3d_teleop/misc_scripts/manifest.xml",
+		"/Users/william/devel/3dteleop_ws/3d_teleop/misc_scripts/nodes/odom2tf.py",
+		"/Users/william/devel/3dteleop_ws/3d_teleop/misc_scripts/nodes/automow_laser_filter.py",
+		"/Users/william/devel/3dteleop_ws/3d_teleop/misc_scripts/nodes/rename_tf_frame.py",
+		"/Users/william/devel/3dteleop_ws/3d_teleop/misc_scripts/nodes/remap_tf.py",
+		"/Users/william/Downloads/orocos_kinematics_dynamics-ffdeaad-install_name_tool.patch",
+		"/Users/william/devel/automow_ws/au_automow_common/automow_bringup/launch/minimal.launch",
+		"/Users/william/devel/vis_ws/visualization/rviz/manifest.xml",
+		"/Library/Python/2.7/site-packages/pkg_resources.py",
+		"/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/posixpath.py",
+		"/Volumes/Storage/Data/Camp Sibert/Feb 15 - Feb 20/plot_em61mk2.py",
+		"/Volumes/Storage/Data/Camp Sibert/Feb 15 - Feb 20/em61mk2.py",
+		"/Volumes/Storage/Data/Camp Sibert 2-15to2-20/em61mk2.py",
+		"/Volumes/Storage/Data/Camp Sibert 2-15to2-20/plot_em61mk2.py"
+	],
+	"find":
+	{
+		"height": 35.0
+	},
+	"find_in_files":
+	{
+		"height": 0.0,
+		"where_history":
+		[
+			""
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+			"counter",
+			"go",
+			"setZoomerMousePattern",
+			"updateNode",
+			"compute",
+			"insertS"
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+		],
+		"reverse": false,
+		"show_context": true,
+		"use_buffer2": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"sheets":
+			[
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 0.0
+	},
+	"input":
+	{
+		"height": 31.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.clang":
+	{
+		"height": 100.0
+	},
+	"output.exec":
+	{
+		"height": 274.0
+	},
+	"replace":
+	{
+		"height": 0.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 0.0,
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"show_minimap": false,
+	"show_open_files": false,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 283.0,
+	"status_bar_visible": true
+}
