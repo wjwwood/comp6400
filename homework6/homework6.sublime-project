@@ -1,0 +1,17 @@
+{
+	"folders":
+	[
+		{
+			"path": "/Users/william/devel/comp6400/homework6"
+		}
+	],
+	"settings":
+	{
+		"sublimeclang_options":
+		[
+			"-I/usr/include",
+			"-I/usr/local/include",
+			"-I/usr/lib/clang/3.1/include/"
+		]
+	}
+}
