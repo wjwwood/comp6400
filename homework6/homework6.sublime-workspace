@@ -4,6 +4,22 @@
 		"selected_items":
 		[
 			[
+				"loa",
+				"loaded_	bool"
+			],
+			[
+				"di",
+				"disable()	void"
+			],
+			[
+				"ena",
+				"enabled_	bool"
+			],
+			[
+				"sp",
+				"specular(GLfloat r, GLfloat g, GLfloat b, GLfloat a)	void"
+			],
+			[
 				"spo",
 				"spot_light	Light"
 			],
@@ -18,10 +34,6 @@
 			[
 				"GL_NOR",
 				"GL_NORMALIZE	"
-			],
-			[
-				"di",
-				"direction_	GLfloat [3]"
 			],
 			[
 				"att",
@@ -209,6 +221,7 @@
 	"file_history":
 	[
 		"/Users/william/devel/comp6400/homework6/src/main.cc",
+		"/Users/william/devel/comp6400/homework6/models/ground.mtl",
 		"/Users/william/devel/comp6400/homework6/homework6.sublime-project",
 		"/Users/william/devel/comp6400/homework6/models/shelby.mtl",
 		"/Users/william/devel/comp6400/homework6/models/shelby.obj",
@@ -266,7 +279,7 @@
 	},
 	"find_in_files":
 	{
-		"height": 0.0,
+		"height": 93.0,
 		"where_history":
 		[
 			""
@@ -277,6 +290,9 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"window_width",
+			"800",
+			"•",
 			"Cube",
 			"expected 1.",
 			"counter",
@@ -292,6 +308,7 @@
 		"regex": false,
 		"replace_history":
 		[
+			"*"
 		],
 		"reverse": false,
 		"show_context": true,
@@ -342,9 +359,13 @@
 	{
 		"height": 100.0
 	},
+	"output.exec":
+	{
+		"height": 100.0
+	},
 	"replace":
 	{
-		"height": 0.0
+		"height": 64.0
 	},
 	"save_all_on_build": true,
 	"select_file":

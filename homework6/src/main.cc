@@ -21,7 +21,7 @@
 
 /* Homework Assignment #6:
 
-COMP5/6400 Programming Assignment 6: Collision Avoidance & Animation 
+COMP 5/6400 Programming Assignment 6: Collision Avoidance & Animation 
 
 Duration: Two Weeks  (100 points)
 
@@ -744,6 +744,175 @@ private:
 };
 map<int,bool> Light::lights_used = map<int,bool>();
 
+/*!
+ * This is a class that represents any object in the scene.
+ */
+class SceneObject {
+public:
+  SceneObject() {
+    this->position_[0] = 0;
+    this->position_[1] = 0;
+    this->position_[2] = 0;
+    this->rotation_[0] = 0;
+    this->rotation_[1] = 0;
+    this->rotation_[2] = 0;
+  }
+  ~SceneObject() {}
+
+  void enterCoordinateFrame() {
+    glTranslatef(this->position_[0], this->position_[1], this->position_[2]);
+    glRotatef(this->rotation_[0], 1, 0, 0);
+    glRotatef(this->rotation_[1], 0, 1, 0);
+    glRotatef(this->rotation_[2], 0, 0, 1);
+  }
+
+  void draw_only() {
+    vector<Model>::iterator it = this->models_.begin();
+    for (; it != this->models_.end(); it++) {
+      (*it).draw();
+    }
+  }
+
+  /*!
+   * Draws the models in the scene object
+   */
+  void draw() {
+    if (!this->loaded_) {
+      this->load();
+    }
+    glPushMatrix();
+      this->enterCoordinateFrame();
+      this->draw_only();
+    glPopMatrix();
+  }
+
+  /*!
+   * Loads the model(s) for the scene object
+   */
+  void load() {
+    if (this->loaded_) {
+      return;
+    }
+    vector<string>::iterator it = this->model_paths_.begin();
+    for (; it != this->model_paths_.end(); it++) {
+      this->models_.push_back(Model());
+      this->models_.back().loadModelFromFile((*it));
+    }
+    this->loaded_ = true;
+  }
+
+  /*!
+   * Adds the model string to the models to be loaded.
+   */
+  void addModel(const string &path) {
+    this->model_paths_.push_back(path);
+  }
+
+  void moveTo(GLfloat x, GLfloat y, GLfloat z) {
+    this->position_[0] = x;
+    this->position_[1] = y;
+    this->position_[2] = z;
+  }
+
+  void move(GLfloat dx, GLfloat dy, GLfloat dz) {
+    this->position_[0] += dx;
+    this->position_[1] += dy;
+    this->position_[2] += dz;
+  }
+
+  GLfloat* getPosition() {
+    return this->position_;
+  }
+
+  void rotateTo(GLfloat roll, GLfloat pitch, GLfloat yaw) {
+    this->rotation_[0] = roll;
+    this->rotation_[1] = pitch;
+    this->rotation_[2] = yaw;
+  }
+
+  void rotate(GLfloat droll, GLfloat dpitch, GLfloat dyaw) {
+    this->rotation_[0] += droll;
+    this->rotation_[1] += dpitch;
+    this->rotation_[2] += dyaw;
+  }
+
+  GLfloat* getRotation() {
+    return this->rotation_;
+  }
+
+private:
+  bool loaded_;
+  vector<string> model_paths_;
+  vector<Model> models_;
+  GLfloat position_[3];
+  GLfloat rotation_[3];
+
+};
+
+/*! A class to represent OpenGL cameras. */
+class Camera : public SceneObject {
+public:
+  Camera() {}
+  ~Camera() {}
+
+  void draw() {
+    GLfloat * rotation = SceneObject::getRotation();
+    GLfloat rel_pos[3];
+    rel_pos[0] = this->distance_;
+    rel_pos[1] = 0;
+    rel_pos[2] = 0;
+    GLfloat r = rotation[0]*degrees_to_radians; // roll
+    GLfloat p = rotation[1]*degrees_to_radians; // pitch
+    GLfloat y = rotation[2]*degrees_to_radians; // yaw
+    GLfloat R[3][3]; // 3D rotation matrix
+    R[0][0] = cos(p)*cos(y);
+    R[0][1] = sin(r)*sin(p)*cos(y) - cos(r)*sin(y);
+    R[0][2] = sin(r)*sin(y) + cos(r)*sin(p)*sin(y);
+    R[1][0] = cos(p)*sin(y);
+    R[1][1] = cos(r)*cos(y) + sin(r)*sin(p)*sin(y);
+    R[1][2] = cos(r)*sin(p)*sin(y) - sin(r)*cos(y);
+    R[2][0] = -1*sin(p);
+    R[2][1] = sin(r)*cos(p);
+    R[2][2] = cos(r)*cos(p);
+    GLfloat cam_pos[3];
+    cam_pos[0] = rel_pos[0]*R[0][0] + rel_pos[1]*R[0][1] + rel_pos[2]*R[0][2];
+    cam_pos[0] += this->target_[0];
+    cam_pos[1] = rel_pos[0]*R[1][0] + rel_pos[1]*R[1][1] + rel_pos[2]*R[1][2];
+    cam_pos[1] += this->target_[1];
+    cam_pos[2] = rel_pos[0]*R[2][0] + rel_pos[1]*R[2][1] + rel_pos[2]*R[2][2];
+    cam_pos[2] += this->target_[2] + 5.0f;
+    gluLookAt(cam_pos[0], cam_pos[1], cam_pos[2],
+              this->target_[0], this->target_[1], this->target_[2],
+              0.0f, 0.0f, 1.0f);
+  }
+
+  void setTarget(GLfloat x, GLfloat y, GLfloat z) {
+    this->target_[0] = x;
+    this->target_[1] = y;
+    this->target_[2] = z;
+  }
+
+  void setTarget(SceneObject &so) {
+    GLfloat * position = so.getPosition();
+    this->target_[0] = position[0];
+    this->target_[1] = position[1];
+    this->target_[2] = position[2];
+  }
+
+  void setDistance(GLfloat distance_to_target) {
+    this->distance_ = distance_to_target;
+  }
+
+  void distance(GLfloat delta_distance) {
+    this->distance_ += delta_distance;
+  }
+
+private:
+  GLfloat target_[3];
+  GLfloat distance_;
+  
+};
+
 /***
  * Domain Specific Code
  */
@@ -751,12 +920,12 @@ map<int,bool> Light::lights_used = map<int,bool>();
 /*!
  * This is a class that represents a person in 3D
  */
-class Person3D {
+class Person : public SceneObject {
 public:
-  Person3D() {
-
+  Person() {
+    SceneObject::addModel("student.obj");
   }
-  ~Person3D() {
+  ~Person() {
 
   }
 
@@ -764,18 +933,17 @@ public:
    * Draws the person
    */
   void draw() {
-    this->person_model_.draw();
+    SceneObject::draw();
   }
 
   /*!
    * Loads the model(s) for the person
    */
   void load() {
-    this->person_model_.loadModelFromFile("student.obj");
+    SceneObject::draw();
   }
 
 private:
-  Model person_model_;
 
 };
 
@@ -783,19 +951,13 @@ private:
  * Main program
  */
 
-Person3D person;
-Model shelby;
+Person * person;
+vector<Person> persons;
+SceneObject shelby;
+Camera main_camera;
 Light the_sun;
 Light positional_light;
 Light spot_light;
-
-GLfloat origin[3] = {0.0f, 0.0f, 5.0f};
-GLfloat camera[3] = {100.0f, 0.0f, 50.0f};
-GLfloat rotation[3] = {0.0f, 0.0f, 0.0f};
-
-GLfloat x_position = 0.0f;
-GLfloat y_position = 0.0f;
-GLfloat heading = 0.0f;
 
 enum LightingStyle {
   no_selection = -1,
@@ -839,11 +1001,9 @@ void setup() {
   // This draws things in order of z depth for the camera
   glEnable(GL_DEPTH_TEST);
 
-  the_sun.position(0.0f, 0.0f, 75.0f, 0.0f);
-  the_sun.ambient(1.0f, 1.0f, 1.0f, 1.0f);
-  the_sun.diffuse(1.0f, 1.0f, 1.0f, 1.0f);
-  the_sun.specular(0.0f, 0.0f, 0.0f, 1.0f);
-  the_sun.enable();
+  main_camera.setTarget(0.0f, 0.0f, 0.0f);
+  main_camera.rotate(0.0f, -60.0f, 180.0f);
+  main_camera.setDistance(20.0f);
 
   spot_light.position(0.0f, 0.0f, 20.0f, 1.0f);
   spot_light.ambient(1.0, 1.0, 1.0, 1.0);
@@ -853,6 +1013,12 @@ void setup() {
   spot_light.direction(0, 0, -1);
   spot_light.enable();
 
+  the_sun.position(0.0f, 0.0f, 75.0f, 0.0f);
+  the_sun.ambient(1.0f, 1.0f, 1.0f, 1.0f);
+  the_sun.diffuse(1.0f, 1.0f, 1.0f, 1.0f);
+  the_sun.specular(0.0f, 0.0f, 0.0f, 1.0f);
+  the_sun.enable();
+
   positional_light.position(0.0f, 20.0f, 10.0f, 1.0f);
   positional_light.ambient(0.0, 0.0, 0.0, 1.0);
   positional_light.diffuse(1.0, 1.0, 0.0, 1.0);
@@ -861,11 +1027,15 @@ void setup() {
   glClearColor(c.r, c.g, c.b, 1.0f);
 
   string shelby_model = "shelby.obj";
-  if (!shelby.loadModelFromFile(shelby_model.c_str())) {
-    cerr << "Failed to load ground from file, quitting." << endl;
-    exit(1);
+  shelby.addModel(shelby_model);
+  shelby.moveTo(0, 0, -0.1);
+  // Load the people
+  for (int i = 0; i < 9; ++i) {
+    persons.push_back(Person());
+    persons.back().load();
+    persons.back().moveTo(i, 0, 0);
   }
-  person.load();
+  person = &persons[0];
 }
 
 /*! GLUT display callback */
@@ -874,25 +1044,23 @@ void display() {
 
   glLoadIdentity();
 
-  gluLookAt(camera[0], camera[1], camera[2],
-            origin[0], origin[1], origin[2],
-            0.0f, 0.0f, 1.0f);
-  glRotatef(rotation[0], 1.0f, 0.0f, 0.0f);
-  glRotatef(rotation[1], 0.0f, 1.0f, 0.0f);
-  glRotatef(rotation[2], 0.0f, 0.0f, 1.0f);
+  main_camera.setTarget((*person));
+  main_camera.draw();
 
   // Draw the environment
   shelby.draw();
   positional_light.apply();
 
-  // move and rotate the student
-  glPushMatrix();
-    glTranslatef(x_position, y_position, 0.0f);
-    glRotatef(heading, 0.0f, 0.0f, 1.0f);
-
-    person.draw();
-    spot_light.apply();
-  glPopMatrix();
+  vector<Person>::iterator it = persons.begin();
+  for (; it != persons.end(); it++) {
+    (*it).draw();
+  }
+  if (person) {
+    glPushMatrix();
+      person->enterCoordinateFrame();
+      spot_light.apply();
+    glPopMatrix();
+  }
 
   glutSwapBuffers();
 }
@@ -912,29 +1080,47 @@ void resize(GLsizei w, GLsizei h) {
 void OnKeyboardPress(unsigned char key, int x, int y) {
   double travel = 1.0f;
   double rotate = 5.0f;
-  switch(key){
+  GLfloat heading, dx, dy;
+  switch(key) {
+    case 48: // 0
+      // TODO: add the camera here
+      break;
+    case 49: // 1
+    case 50: // 2
+    case 51: // 3
+    case 52: // 4
+    case 53: // 5
+    case 54: // 6
+    case 55: // 7
+    case 56: // 8
+    case 57: // 9
+      person = &persons[key-49];
+      break;
     case 27: // esc
       exit(0);
       break;
     case 97: // a
-      heading += rotate;
+      person->rotate(0, 0, rotate);
       break;
     case 100: // d
-      heading -= rotate;
+      person->rotate(0, 0, -rotate);
       break;
     case 108: // l
       toggleLighting();
       break;
     case 119: // w
-      x_position += travel*cos(heading*degrees_to_radians);
-      y_position += travel*sin(heading*degrees_to_radians);
+      heading = person->getRotation()[2];
+      dx = travel*cos(heading*degrees_to_radians);
+      dy = travel*sin(heading*degrees_to_radians);
+      person->move(dx, dy, 0);
       break;
     case 115: // s
-      x_position -= travel*cos(heading*degrees_to_radians);
-      y_position -= travel*sin(heading*degrees_to_radians);
+      heading = person->getRotation()[2];
+      dx = travel*cos(heading*degrees_to_radians);
+      dy = travel*sin(heading*degrees_to_radians);
+      person->move(-dx, -dy, 0);
       break;
     case 45: // -
-      // camera[0] += 2.5f;
       switch (current_lighting) {
         case spotlight:
           spot_light.dimmer();
@@ -951,7 +1137,6 @@ void OnKeyboardPress(unsigned char key, int x, int y) {
       }
       break;
     case 61: // =
-      // camera[0] -= 2.5f;
       switch (current_lighting) {
         case spotlight:
           spot_light.brighter();
@@ -967,6 +1152,12 @@ void OnKeyboardPress(unsigned char key, int x, int y) {
           break;
       }
       break;
+    case 44: // ,
+      main_camera.distance(-1.0);
+      break;
+    case 46: // .
+      main_camera.distance(1.0);
+      break;
     case 110: // n
       the_sun.toggle();
       break;
@@ -981,20 +1172,25 @@ void OnKeyboardPress(unsigned char key, int x, int y) {
 void OnSpecialKeyboardPress(int key, int x, int y) {
   double travel = 1.0f;
   double rotate = 5.0f;
+  GLfloat heading, dx, dy;
   switch (key) {
     case GLUT_KEY_LEFT:
-      heading += rotate;
+      person->rotate(0, 0, rotate);
       break;
     case GLUT_KEY_RIGHT:
-      heading -= rotate;
+      person->rotate(0, 0, -rotate);
       break;
     case GLUT_KEY_UP:
-      x_position += travel*cos(heading*degrees_to_radians);
-      y_position += travel*sin(heading*degrees_to_radians);
+      heading = person->getRotation()[2];
+      dx = travel*cos(heading*degrees_to_radians);
+      dy = travel*sin(heading*degrees_to_radians);
+      person->move(dx, dy, 0);
       break;
     case GLUT_KEY_DOWN:
-      x_position -= travel*cos(heading*degrees_to_radians);
-      y_position -= travel*sin(heading*degrees_to_radians);
+      heading = person->getRotation()[2];
+      dx = travel*cos(heading*degrees_to_radians);
+      dy = travel*sin(heading*degrees_to_radians);
+      person->move(-dx, -dy, 0);
       break;
     default:
       break;
@@ -1019,19 +1215,14 @@ void onMouseButton(int button, int state, int x, int y) {
       old_x = 0;
     }
   }
-  // Scrolling
-  if (button == GLUT_WHEEL_UP || button == GLUT_WHEEL_DOWN) {
-    if (state == GLUT_UP) return;
-    if (button == GLUT_WHEEL_UP) camera[0] += 0.5f;
-    if (button == GLUT_WHEEL_DOWN) camera[0] -= 0.5f;
-  }
 }
 
 /*! GLUT on active (button pressed) mouse motion callback */
 void onActiveMouseMotion(int x, int y) {
   if (dragging) {
-    rotation[1] -= (old_y - y)/5.0f;
-    rotation[2] -= (old_x - x)/5.0f;
+    GLfloat dpitch = (old_y - y)/5.0f;
+    GLfloat dyaw = (old_x - x)/5.0f;
+    main_camera.rotate(0.0f, dpitch, dyaw);
     old_y = y;
     old_x = x;
     glutPostRedisplay();
