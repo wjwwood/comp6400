@@ -14,9 +14,10 @@
  * Number key `0` allows you to take control of the camera separately.
  * The scroll wheel or the `-` and `+` keys adjust the brightness of 
    lights currently on.
+ * The `,` key zooms in and the `.` key zooms the camera out.
  * `l` toggles the lighting setup.
  * `n` toggles the sun light on and off
- * `p` starts the tour of Shelby
+ * `p` starts the tour of Shelby, press `p` again to cancel the tour.
  */
 
 /* Homework Assignment #6:
@@ -74,6 +75,7 @@ Description:
 #include <iostream>
 #include <stdexcept>
 #include <cmath>
+#include <limits>
 
 // Windows specific
 #ifdef WIN32
@@ -113,6 +115,7 @@ using std::istringstream;
 using std::istream_iterator;
 using std::copy;
 using std::back_inserter;
+using std::numeric_limits;
 
 /***
  * Global variables
@@ -132,10 +135,11 @@ string model_path = "models/";
  */
 class Model {
 public:
-  Model() : force_smooth_shading(true) {}
+  Model() : force_smooth_shading(true), draw_collision(true) {}
   ~Model() {}
 
   bool loadModelFromFile(string file_name) {
+    this->file_name_ = file_name;
     // Parse it
     if (!this->parse_obj_(file_name)) {
       cerr << "Could not open the resource file: " << file_name << endl;
@@ -168,6 +172,17 @@ public:
       glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE,   material.Kd);
       glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT,   material.Kd);
       glMaterialf (GL_FRONT_AND_BACK, GL_SHININESS, material.Ns);
+      if (0) {
+      // if (this->draw_collision && this->file_name_ == "shelby.obj" && obj_it->name == "Cube.019_Cube.021") {
+      // if (this->file_name_ == "shelby.obj") {
+        // printf(":: %f, %f, %f,, %f, %f, %f\n", obj_it->mbb.max.x, obj_it->mbb.max.y, obj_it->mbb.max.z, obj_it->mbb.min.x, obj_it->mbb.min.y, obj_it->mbb.min.z);
+        glBegin(GL_QUADS);
+          glVertex3f(obj_it->mbb.max.x, obj_it->mbb.max.y, 20.0);
+          glVertex3f(obj_it->mbb.min.x, obj_it->mbb.max.y, 20.0);
+          glVertex3f(obj_it->mbb.min.x, obj_it->mbb.min.y, 20.0);
+          glVertex3f(obj_it->mbb.max.x, obj_it->mbb.min.y, 20.0);
+        glEnd();
+      }
       // For each face of the object
       size_t face_count = 0;
       vector<Face>::iterator face_it = (*obj_it).faces.begin();
@@ -203,7 +218,7 @@ public:
             }
             glVertex3f(v.x, v.z, v.y);
             if (do_normals) {
-              // glNormal3f(vn.x, vn.z, vn.y);
+              glNormal3f(vn.x, vn.z, vn.y);
             }
           }
         glEnd();
@@ -214,9 +229,14 @@ public:
     glPopMatrix();
   }
 
-  bool force_smooth_shading;
-private:
+  bool force_smooth_shading, draw_collision;
+public:
   struct Vertex {
+    Vertex(GLfloat _x = 0.0f, GLfloat _y = 0.0f, GLfloat _z = 0.0f) {
+      x = _x;
+      y = _y;
+      z = _z;
+    }
     GLfloat x, y, z;
   };
 
@@ -227,6 +247,19 @@ private:
   };
 
   struct Material {
+    Material() {
+      name = "";
+      Ns = 0.0f;
+      Ka[0] = 0.0f;
+      Ka[1] = 0.0f;
+      Ka[2] = 0.0f;
+      Kd[0] = 0.0f;
+      Kd[1] = 0.0f;
+      Kd[2] = 0.0f;
+      Ks[0] = 0.0f;
+      Ks[1] = 0.0f;
+      Ks[2] = 0.0f;
+    }
     string name;
     GLfloat Ns;
     GLfloat Ka[3];
@@ -234,13 +267,30 @@ private:
     GLfloat Ks[3];
   };
 
+  struct CollisionBox {
+    CollisionBox() {
+      max = Vertex();
+      min = Vertex();
+    }
+    Vertex max;
+    Vertex min;
+  };
+
   struct Object {
+    Object() {
+      name = "";
+      material = "";
+      smooth_shadding = true;
+      mbb = CollisionBox();
+    }
     string name;
     vector<Face> faces;
     string material;
     bool smooth_shadding;
+    CollisionBox mbb;
   };
 
+private:
   bool parse_mtl_(string mtl_file_name) {
     fstream file_stream;
     file_stream.open((model_path+mtl_file_name).c_str(), fstream::in);
@@ -275,7 +325,7 @@ private:
             current_mtl.name = line.substr(7);
           }
           break;
-        case 'K': // Ka,Kd,orKs
+        case 'K': // Ka, Kd, or Ks
           size_t matches;
           if (line.substr(0, 2) == "Ka") { // a Ka
             element_type = "Ka";
@@ -332,6 +382,53 @@ private:
     return true;
   }
 
+  CollisionBox calculateMBB(Object &obj) {
+    CollisionBox mbb;
+    float limit = numeric_limits<float>::max();
+    mbb.max.x = limit;
+    mbb.max.y = limit;
+    mbb.max.z = limit;
+    mbb.min.x = limit;
+    mbb.min.y = limit;
+    mbb.min.z = limit;
+    // For each face of the object
+    vector<Face>::iterator face_it = obj.faces.begin();
+    for (; face_it != obj.faces.end(); face_it++) {
+      for (int i = 0; i < face_it->verterx_indices.size(); ++i) {
+        Vertex vertex;
+        try {
+          vertex = this->verticies_.at(face_it->verterx_indices[i]);
+        } catch (out_of_range &e) {
+          continue;
+        }
+        if (vertex.x < -1000.0 || vertex.y < -1000.0 || vertex.z < -1000.0
+         || vertex.x > 1000.0 || vertex.y > 1000.0 || vertex.z > 1000.0) {
+          printf("================================================asdf\n");
+          printf("Object: [%s]@%i - %f %f %f\n", obj.name.c_str(), face_it->verterx_indices[i], vertex.x, vertex.y, vertex.z);
+        }
+        if (mbb.max.x == limit || vertex.x > mbb.max.x) {
+          mbb.max.x = vertex.x;
+        }
+        if (mbb.min.x == limit || vertex.x < mbb.min.x) {
+          mbb.min.x = vertex.x;
+        }
+        if (mbb.max.y == limit || vertex.z > mbb.max.y) {
+          mbb.max.y = vertex.z;
+        }
+        if (mbb.min.y == limit || vertex.z < mbb.min.y) {
+          mbb.min.y = vertex.z;
+        }
+        if (mbb.max.z == limit || vertex.y > mbb.max.z) {
+          mbb.max.z = vertex.y;
+        }
+        if (mbb.min.z == limit || vertex.y < mbb.min.z) {
+          mbb.min.z = vertex.y;
+        }
+      }
+    }
+    return mbb;
+  }
+
   bool parse_obj_(string obj_file_name) {
     fstream file_stream;
     file_stream.open((model_path+obj_file_name).c_str(), fstream::in);
@@ -382,6 +479,9 @@ private:
         case 'v': // vertex or vertex normal
           if (line.substr(0, 2) == "vn") { // a vertex normal
             Vertex vertex;
+            vertex.x = 0.0f;
+            vertex.y = 0.0f;
+            vertex.z = 0.0f;
             size_t matches = sscanf(line.c_str(), "vn %f %f %f",
                                     &vertex.x,
                                     &vertex.y,
@@ -398,6 +498,9 @@ private:
           }
           if (line.substr(0, 2) == "v ") { // just a vertex
             Vertex vertex;
+            vertex.x = 0.0f;
+            vertex.y = 0.0f;
+            vertex.z = 0.0f;
             size_t matches = sscanf(line.c_str(), "v %f %f %f",
                                     &vertex.x,
                                     &vertex.y,
@@ -495,13 +598,23 @@ private:
     if (!current_object.name.empty()) {
       this->objects_.push_back(current_object);
     }
+    // Calculate the Minimum Bounding Boxes for each object
+    vector<Object>::iterator it = this->objects_.begin();
+    for (; it != this->objects_.end(); it++) {
+      // printf("[%s] Bounding Box: \n", it->name.c_str());
+      (*it).mbb = calculateMBB((*it));
+      // printf("  max: %f %f %f\n", it->mbb.max.x, it->mbb.max.y, it->mbb.max.z);
+      // printf("  min: %f %f %f\n", it->mbb.min.x, it->mbb.min.y, it->mbb.min.z);
+    }
     return true;
   }
 
+public:
   vector<Object> objects_;
   vector<Vertex> verticies_;
   vector<Vertex> normals_;
   map<string, Material> materials_;
+  string file_name_;
 };
 
 /*!
@@ -840,6 +953,67 @@ public:
     return this->rotation_;
   }
 
+  bool collidesWith(SceneObject &obj) {
+    GLfloat * my_position = this->getPosition();
+    GLfloat * their_position = obj.getPosition();
+    vector<Model>::iterator my_model_it = models_.begin();
+    for (; my_model_it != models_.end(); my_model_it++) {
+      vector<Model>::iterator their_model_it = obj.models_.begin();
+      for (; their_model_it != obj.models_.end(); their_model_it++) {
+        Model my_model = (*my_model_it);
+        Model their_model = (*their_model_it);
+        vector<Model::Object>::iterator my_obj_it = my_model.objects_.begin();
+        for (; my_obj_it != my_model.objects_.end(); my_obj_it++) {
+          vector<Model::Object>::iterator their_obj_it =
+            their_model.objects_.begin();
+          for (; their_obj_it != their_model.objects_.end(); their_obj_it++) {
+            Model::Object my_obj = (*my_obj_it);
+            Model::Object their_obj = (*their_obj_it);
+            if (compareMBB(my_obj, my_position, their_obj, their_position)) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  bool compareMBB(Model::Object &my_obj, GLfloat *my_pos,
+                  Model::Object their_obj, GLfloat *their_pos)
+  {
+    Model::CollisionBox lhs = my_obj.mbb;
+    Model::CollisionBox rhs = their_obj.mbb;
+    lhs.max.x += my_pos[0];
+    lhs.max.y += my_pos[1];
+    lhs.max.z += my_pos[2];
+    lhs.min.x += my_pos[0];
+    lhs.min.y += my_pos[1];
+    lhs.min.z += my_pos[2];
+    rhs.max.x += their_pos[0];
+    rhs.max.y += their_pos[1];
+    rhs.max.z += their_pos[2];
+    rhs.min.x += their_pos[0];
+    rhs.min.y += their_pos[1];
+    rhs.min.z += their_pos[2];
+    if (lhs.max.x < rhs.min.x) return false;
+    if (lhs.min.x > rhs.max.x) return false;
+    if (lhs.max.y < rhs.min.y) return false;
+    if (lhs.min.y > rhs.max.y) return false;
+    if (lhs.max.z < rhs.min.z) return false;
+    if (lhs.min.z > rhs.max.z) return false;
+    printf("==========\n");
+    printf("[%s]\n", my_obj.name.c_str());
+    printf("  max: %f %f %f\n", lhs.max.x, lhs.max.y, lhs.max.z);
+    printf("  min: %f %f %f\n", lhs.min.x, lhs.min.y, lhs.min.z);
+    printf("Collides with:\n");
+    printf("[%s]\n", their_obj.name.c_str());
+    printf("  max: %f %f %f\n", rhs.max.x, rhs.max.y, rhs.max.z);
+    printf("  min: %f %f %f\n", rhs.min.x, rhs.min.y, rhs.min.z);
+    printf("==========\n");
+    return true;
+  }
+
 private:
   bool loaded_;
   vector<string> model_paths_;
@@ -922,7 +1096,7 @@ private:
  */
 class Person : public SceneObject {
 public:
-  Person() {
+  Person(int index_ = 0) : index(index_) {
     SceneObject::addModel("student.obj");
   }
   ~Person() {
@@ -943,7 +1117,107 @@ public:
     SceneObject::draw();
   }
 
+  bool collidesWith(Person &person) {
+    GLfloat * my_position = this->getPosition();
+    GLfloat * their_position = person.getPosition();
+    GLfloat distance = sqrt(pow(their_position[0]-my_position[0], 2.0)
+                          + pow(their_position[1] - my_position[1], 2.0));
+    if (fabs(distance) <= 1.5) {
+      return true;
+    }
+    return false;
+  }
+
+  bool collidesWith(SceneObject &so) {
+    return SceneObject::collidesWith(so);
+  }
+
+  int index;
+
 private:
+
+};
+
+class Shelby : public SceneObject {
+public:
+  Shelby() {
+    SceneObject::SceneObject();
+    SceneObject::addModel("shelby.obj");
+
+    Model::CollisionBox NE_GRASS;
+    NE_GRASS.max.x = 25;
+    NE_GRASS.min.x = 6;
+    NE_GRASS.max.y = -11;
+    NE_GRASS.min.y = -19.4;
+    this->mbbs_.push_back(NE_GRASS);
+    Model::CollisionBox NW2;
+    NW2.max.x = -27;
+    NW2.min.x = -41;
+    NW2.max.y = -8;
+    NW2.min.y = -39;
+    this->mbbs_.push_back(NW2);
+    Model::CollisionBox NW1;
+    NW1.max.x = -8;
+    NW1.min.x = -27;
+    NW1.max.y = -25;
+    NW1.min.y = -39;
+    this->mbbs_.push_back(NW1);
+    Model::CollisionBox SW;
+    SW.max.x = -10.25;
+    SW.min.x = -40.75;
+    SW.max.y = 31;
+    SW.min.y = 16;
+    this->mbbs_.push_back(SW);
+    Model::CollisionBox SE;
+    SE.max.x = 40.43;
+    SE.min.x = 9.87;
+    SE.max.y = 31.14;
+    SE.min.y = 16.49;
+    this->mbbs_.push_back(SE);
+    Model::CollisionBox NE1;
+    NE1.max.x = 27.10;
+    NE1.min.x = 7.66;
+    NE1.max.y = -25.15;
+    NE1.min.y = -39.1;
+    this->mbbs_.push_back(NE1);
+    Model::CollisionBox NE2;
+    NE2.max.x = 40.87;
+    NE2.min.x = 26.67;
+    NE2.max.y = -8.19;
+    NE2.min.y = -39.24;
+    this->mbbs_.push_back(NE2);
+  }
+  ~Shelby() {
+
+  }
+
+  bool collidesWith(Person &person) {
+    GLfloat * position = person.getPosition();
+    Model::CollisionBox person_mbb;
+    person_mbb.max.x = 1 + position[0];
+    person_mbb.min.x = -0.5 + position[0];
+    person_mbb.max.y = 0.5 + position[1];
+    person_mbb.min.y = -0.5 + position[1];
+    vector<Model::CollisionBox>::iterator it = this->mbbs_.begin();
+    for (; it != this->mbbs_.end(); it++) {
+      if (person_mbb.max.x < it->min.x) {
+        return false;
+      }
+      if (person_mbb.min.x > it->max.x) {
+        return false;
+      }
+      if (person_mbb.max.y < it->min.y) {
+        return false;
+      }
+      if (person_mbb.min.y > it->max.y) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+private:
+  vector<Model::CollisionBox> mbbs_;
 
 };
 
@@ -953,11 +1227,14 @@ private:
 
 Person * person;
 vector<Person> persons;
-SceneObject shelby;
+Shelby shelby;
+SceneObject ground;
 Camera main_camera;
 Light the_sun;
 Light positional_light;
 Light spot_light;
+bool touring;
+size_t touring_index;
 
 enum LightingStyle {
   no_selection = -1,
@@ -968,6 +1245,32 @@ enum LightingStyle {
 };
 
 LightingStyle current_lighting = spotlight;
+
+bool collidesWithShelby(Person &person) {
+
+  return false;
+}
+
+bool detectCollisions(Person &person) {
+  // Compare with each other person
+  vector<Person>::iterator it = persons.begin();
+  for (; it != persons.end(); it++) {
+    // As long as they are the same person
+    if (person.index != it->index) {
+      if (person.collidesWith((*it))) {
+        printf("Person %i collides with person %i\n", person.index, it->index);
+        return true;
+      }
+    }
+  }
+  return collidesWithShelby(person);
+  // Compare with Shelby
+  // if (person.collidesWith(shelby)) {
+    // printf("Person %i collides with the Shelby center.\n", person.index);
+    // return true;
+  // }
+  return false;
+}
 
 void toggleLighting() {
   if (current_lighting == no_selection) {
@@ -994,12 +1297,976 @@ void toggleLighting() {
   // glutPostRedisplay();
 }
 
+vector<Model::Vertex> path, path_rot;
+
+void setupPath() {
+  path.push_back(Model::Vertex(41.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(40.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(39.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(38.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(37.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(36.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(35.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(34.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(33.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(32.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(31.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(30.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(29.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(28.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(27.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(26.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(25.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(24.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(23.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(22.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(21.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(20.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(19.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(18.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(17.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(16.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(15.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(14.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(13.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(12.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(11.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(10.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(9.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(8.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(7.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(6.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(5.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(4.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(3.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(2.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(2.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -175.000000));
+  path.push_back(Model::Vertex(2.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -170.000000));
+  path.push_back(Model::Vertex(2.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -165.000000));
+  path.push_back(Model::Vertex(2.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -160.000000));
+  path.push_back(Model::Vertex(2.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -155.000000));
+  path.push_back(Model::Vertex(2.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -150.000000));
+  path.push_back(Model::Vertex(2.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -145.000000));
+  path.push_back(Model::Vertex(2.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -140.000000));
+  path.push_back(Model::Vertex(2.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(2.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -130.000000));
+  path.push_back(Model::Vertex(2.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -125.000000));
+  path.push_back(Model::Vertex(2.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -120.000000));
+  path.push_back(Model::Vertex(2.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -115.000000));
+  path.push_back(Model::Vertex(2.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -110.000000));
+  path.push_back(Model::Vertex(2.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -105.000000));
+  path.push_back(Model::Vertex(2.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -100.000000));
+  path.push_back(Model::Vertex(2.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -95.000000));
+  path.push_back(Model::Vertex(2.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(2.076340, 38.258221, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(2.163496, 37.262028, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(2.250651, 36.265835, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(2.337807, 35.269642, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(2.424963, 34.273449, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(2.512119, 33.277256, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(2.599275, 32.281063, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(2.686430, 31.284868, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(2.773586, 30.288673, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(2.860742, 29.292479, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(2.947898, 28.296284, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(3.035054, 27.300089, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(3.122210, 26.303894, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(3.209365, 25.307699, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(3.296521, 24.311504, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(3.383677, 23.315310, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(3.470833, 22.319115, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(3.557989, 21.322920, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(3.645144, 20.326725, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(3.732300, 19.330530, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(3.819456, 18.334335, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(3.906612, 17.338140, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(3.993768, 16.341946, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(4.080924, 15.345751, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(4.168079, 14.349556, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(4.255235, 13.353361, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(4.342391, 12.357166, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(4.429547, 11.360971, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(4.516703, 10.364777, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(4.516703, 10.364777, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(4.516703, 10.364777, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -95.000000));
+  path.push_back(Model::Vertex(4.516703, 10.364777, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -100.000000));
+  path.push_back(Model::Vertex(4.516703, 10.364777, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -105.000000));
+  path.push_back(Model::Vertex(4.516703, 10.364777, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -110.000000));
+  path.push_back(Model::Vertex(4.516703, 10.364777, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -115.000000));
+  path.push_back(Model::Vertex(4.516703, 10.364777, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -120.000000));
+  path.push_back(Model::Vertex(4.516703, 10.364777, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -125.000000));
+  path.push_back(Model::Vertex(4.516703, 10.364777, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -130.000000));
+  path.push_back(Model::Vertex(4.516703, 10.364777, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(3.809596, 9.657670, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(3.102489, 8.950563, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(2.395382, 8.243457, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(1.688275, 7.536350, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(0.981169, 6.829244, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(0.274062, 6.122137, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(-0.433045, 5.415030, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(-1.140152, 4.707924, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(-1.847259, 4.000817, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(-2.554365, 3.293710, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(-3.261472, 2.586604, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(-3.968579, 1.879497, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(-4.675686, 1.172390, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(-5.382792, 0.465283, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(-6.089899, -0.241824, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(-6.797006, -0.948930, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(-7.504112, -1.656037, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(-8.211219, -2.363144, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(-8.918325, -3.070251, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(-9.625432, -3.777358, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(-10.332539, -4.484464, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(-11.039645, -5.191571, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(-11.746752, -5.898677, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(-12.453858, -6.605784, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -130.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -125.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -120.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -115.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -110.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -105.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -100.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -95.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -80.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -75.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -70.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -65.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -60.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -55.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -50.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -45.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -40.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -35.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -30.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -25.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -20.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -15.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -10.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -5.000000));
+  path.push_back(Model::Vertex(-13.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(-12.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(-11.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(-10.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(-9.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(-8.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(-7.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(-6.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(-5.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(-4.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(-3.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(-2.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(-1.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(-1.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -5.000000));
+  path.push_back(Model::Vertex(-1.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -10.000000));
+  path.push_back(Model::Vertex(-1.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -15.000000));
+  path.push_back(Model::Vertex(-1.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -20.000000));
+  path.push_back(Model::Vertex(-1.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -25.000000));
+  path.push_back(Model::Vertex(-1.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -30.000000));
+  path.push_back(Model::Vertex(-1.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -35.000000));
+  path.push_back(Model::Vertex(-1.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -40.000000));
+  path.push_back(Model::Vertex(-1.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -45.000000));
+  path.push_back(Model::Vertex(-1.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -50.000000));
+  path.push_back(Model::Vertex(-1.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -55.000000));
+  path.push_back(Model::Vertex(-1.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -60.000000));
+  path.push_back(Model::Vertex(-1.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -65.000000));
+  path.push_back(Model::Vertex(-1.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -70.000000));
+  path.push_back(Model::Vertex(-1.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -75.000000));
+  path.push_back(Model::Vertex(-1.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -80.000000));
+  path.push_back(Model::Vertex(-1.160965, -7.312891, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(-1.073809, -8.309085, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(-0.986654, -9.305280, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(-0.899498, -10.301475, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(-0.812342, -11.297669, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(-0.725186, -12.293864, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(-0.638030, -13.290059, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(-0.550875, -14.286254, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(-0.463719, -15.282449, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(-0.376563, -16.278643, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(-0.289407, -17.274837, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(-0.202252, -18.271032, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(-0.115096, -19.267227, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(-0.027940, -20.263422, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(0.059216, -21.259617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(0.146371, -22.255812, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(0.146371, -22.255812, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -80.000000));
+  path.push_back(Model::Vertex(0.146371, -22.255812, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -75.000000));
+  path.push_back(Model::Vertex(0.146371, -22.255812, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -70.000000));
+  path.push_back(Model::Vertex(0.146371, -22.255812, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -65.000000));
+  path.push_back(Model::Vertex(0.146371, -22.255812, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -60.000000));
+  path.push_back(Model::Vertex(0.146371, -22.255812, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -55.000000));
+  path.push_back(Model::Vertex(0.146371, -22.255812, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -50.000000));
+  path.push_back(Model::Vertex(0.146371, -22.255812, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -45.000000));
+  path.push_back(Model::Vertex(0.146371, -22.255812, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -40.000000));
+  path.push_back(Model::Vertex(0.146371, -22.255812, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -35.000000));
+  path.push_back(Model::Vertex(0.146371, -22.255812, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -30.000000));
+  path.push_back(Model::Vertex(0.146371, -22.255812, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -25.000000));
+  path.push_back(Model::Vertex(0.146371, -22.255812, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -20.000000));
+  path.push_back(Model::Vertex(0.146371, -22.255812, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -15.000000));
+  path.push_back(Model::Vertex(0.146371, -22.255812, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -10.000000));
+  path.push_back(Model::Vertex(1.131179, -22.429461, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -10.000000));
+  path.push_back(Model::Vertex(1.131179, -22.429461, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -5.000000));
+  path.push_back(Model::Vertex(2.127374, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -5.000000));
+  path.push_back(Model::Vertex(2.127374, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(3.127374, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(4.127374, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(5.127374, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(6.127374, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(7.127374, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(8.127374, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(9.127374, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(10.127374, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(11.127374, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(12.127374, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(13.127374, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(14.127374, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(15.127374, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(16.127373, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(17.127373, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(18.127373, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(19.127373, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(20.127373, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(21.127373, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(22.127373, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(23.127373, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(24.127373, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(25.127373, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(25.127373, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 5.000000));
+  path.push_back(Model::Vertex(25.127373, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 10.000000));
+  path.push_back(Model::Vertex(25.127373, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 15.000000));
+  path.push_back(Model::Vertex(25.127373, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 20.000000));
+  path.push_back(Model::Vertex(25.127373, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 25.000000));
+  path.push_back(Model::Vertex(25.127373, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 30.000000));
+  path.push_back(Model::Vertex(25.127373, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 35.000000));
+  path.push_back(Model::Vertex(25.127373, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 40.000000));
+  path.push_back(Model::Vertex(25.127373, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 45.000000));
+  path.push_back(Model::Vertex(25.127373, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 50.000000));
+  path.push_back(Model::Vertex(25.127373, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 55.000000));
+  path.push_back(Model::Vertex(25.127373, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 60.000000));
+  path.push_back(Model::Vertex(25.127373, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 65.000000));
+  path.push_back(Model::Vertex(25.127373, -22.516617, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 70.000000));
+  path.push_back(Model::Vertex(25.469393, -21.576923, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 70.000000));
+  path.push_back(Model::Vertex(25.469393, -21.576923, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 75.000000));
+  path.push_back(Model::Vertex(25.728212, -20.610998, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 75.000000));
+  path.push_back(Model::Vertex(25.728212, -20.610998, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 80.000000));
+  path.push_back(Model::Vertex(25.901861, -19.626190, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 80.000000));
+  path.push_back(Model::Vertex(25.901861, -19.626190, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 85.000000));
+  path.push_back(Model::Vertex(25.989017, -18.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 85.000000));
+  path.push_back(Model::Vertex(25.989017, -18.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 90.000000));
+  path.push_back(Model::Vertex(25.989017, -17.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 90.000000));
+  path.push_back(Model::Vertex(25.989017, -16.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 90.000000));
+  path.push_back(Model::Vertex(25.989017, -15.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 90.000000));
+  path.push_back(Model::Vertex(25.989017, -14.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 90.000000));
+  path.push_back(Model::Vertex(25.989017, -13.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 90.000000));
+  path.push_back(Model::Vertex(25.989017, -12.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 90.000000));
+  path.push_back(Model::Vertex(25.989017, -11.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 90.000000));
+  path.push_back(Model::Vertex(25.989017, -10.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 90.000000));
+  path.push_back(Model::Vertex(25.989017, -9.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 90.000000));
+  path.push_back(Model::Vertex(25.989017, -8.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 90.000000));
+  path.push_back(Model::Vertex(25.989017, -7.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 90.000000));
+  path.push_back(Model::Vertex(25.989017, -6.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 90.000000));
+  path.push_back(Model::Vertex(25.989017, -5.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 90.000000));
+  path.push_back(Model::Vertex(25.989017, -4.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 90.000000));
+  path.push_back(Model::Vertex(25.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 90.000000));
+  path.push_back(Model::Vertex(25.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 85.000000));
+  path.push_back(Model::Vertex(25.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 80.000000));
+  path.push_back(Model::Vertex(25.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 75.000000));
+  path.push_back(Model::Vertex(25.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 70.000000));
+  path.push_back(Model::Vertex(25.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 65.000000));
+  path.push_back(Model::Vertex(25.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 60.000000));
+  path.push_back(Model::Vertex(25.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 55.000000));
+  path.push_back(Model::Vertex(25.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 50.000000));
+  path.push_back(Model::Vertex(25.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 45.000000));
+  path.push_back(Model::Vertex(25.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 40.000000));
+  path.push_back(Model::Vertex(25.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 35.000000));
+  path.push_back(Model::Vertex(25.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 30.000000));
+  path.push_back(Model::Vertex(25.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 25.000000));
+  path.push_back(Model::Vertex(25.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 20.000000));
+  path.push_back(Model::Vertex(25.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 15.000000));
+  path.push_back(Model::Vertex(25.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 10.000000));
+  path.push_back(Model::Vertex(25.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 5.000000));
+  path.push_back(Model::Vertex(25.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(26.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(27.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(28.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(29.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(30.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(31.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(32.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(33.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(34.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(35.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(36.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(37.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(38.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(39.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(40.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(41.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, 0.000000));
+  path.push_back(Model::Vertex(41.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -5.000000));
+  path.push_back(Model::Vertex(41.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -10.000000));
+  path.push_back(Model::Vertex(41.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -15.000000));
+  path.push_back(Model::Vertex(41.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -20.000000));
+  path.push_back(Model::Vertex(41.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -25.000000));
+  path.push_back(Model::Vertex(41.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -30.000000));
+  path.push_back(Model::Vertex(41.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -35.000000));
+  path.push_back(Model::Vertex(41.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -40.000000));
+  path.push_back(Model::Vertex(41.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -45.000000));
+  path.push_back(Model::Vertex(41.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -50.000000));
+  path.push_back(Model::Vertex(41.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -55.000000));
+  path.push_back(Model::Vertex(41.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -60.000000));
+  path.push_back(Model::Vertex(41.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -65.000000));
+  path.push_back(Model::Vertex(41.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -70.000000));
+  path.push_back(Model::Vertex(41.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -75.000000));
+  path.push_back(Model::Vertex(41.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -80.000000));
+  path.push_back(Model::Vertex(41.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -85.000000));
+  path.push_back(Model::Vertex(41.989017, -3.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -4.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -5.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -6.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -7.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -8.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -9.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -10.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -11.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -12.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -13.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -14.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -15.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -16.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -17.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -18.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -19.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -20.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -21.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -22.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -23.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -24.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -25.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -26.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -27.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -28.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -29.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -30.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -31.629995, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -32.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -33.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -34.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -35.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -36.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -37.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -38.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -39.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -40.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -41.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -90.000000));
+  path.push_back(Model::Vertex(41.989017, -41.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -95.000000));
+  path.push_back(Model::Vertex(41.989017, -41.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -100.000000));
+  path.push_back(Model::Vertex(41.989017, -41.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -105.000000));
+  path.push_back(Model::Vertex(41.989017, -41.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -110.000000));
+  path.push_back(Model::Vertex(41.989017, -41.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -115.000000));
+  path.push_back(Model::Vertex(41.989017, -41.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -120.000000));
+  path.push_back(Model::Vertex(41.989017, -41.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -125.000000));
+  path.push_back(Model::Vertex(41.989017, -41.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -130.000000));
+  path.push_back(Model::Vertex(41.989017, -41.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -135.000000));
+  path.push_back(Model::Vertex(41.989017, -41.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -140.000000));
+  path.push_back(Model::Vertex(41.989017, -41.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -145.000000));
+  path.push_back(Model::Vertex(41.989017, -41.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -150.000000));
+  path.push_back(Model::Vertex(41.989017, -41.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -155.000000));
+  path.push_back(Model::Vertex(41.989017, -41.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -160.000000));
+  path.push_back(Model::Vertex(41.989017, -41.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -165.000000));
+  path.push_back(Model::Vertex(41.989017, -41.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -170.000000));
+  path.push_back(Model::Vertex(41.989017, -41.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -175.000000));
+  path.push_back(Model::Vertex(41.989017, -41.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(41.989017, -41.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -185.000000));
+  path.push_back(Model::Vertex(41.989017, -41.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(41.989017, -41.629997, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -175.000000));
+  path.push_back(Model::Vertex(40.992825, -41.717152, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -175.000000));
+  path.push_back(Model::Vertex(39.996632, -41.804306, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -175.000000));
+  path.push_back(Model::Vertex(39.000439, -41.891460, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -175.000000));
+  path.push_back(Model::Vertex(38.004246, -41.978615, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -175.000000));
+  path.push_back(Model::Vertex(37.008053, -42.065769, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -175.000000));
+  path.push_back(Model::Vertex(36.011860, -42.152924, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -175.000000));
+  path.push_back(Model::Vertex(35.015667, -42.240078, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -175.000000));
+  path.push_back(Model::Vertex(34.019474, -42.327232, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -175.000000));
+  path.push_back(Model::Vertex(33.023281, -42.414387, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -175.000000));
+  path.push_back(Model::Vertex(32.027088, -42.501541, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -175.000000));
+  path.push_back(Model::Vertex(31.030893, -42.588696, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -175.000000));
+  path.push_back(Model::Vertex(30.034698, -42.675850, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -175.000000));
+  path.push_back(Model::Vertex(29.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -175.000000));
+  path.push_back(Model::Vertex(29.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(28.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(27.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(26.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(25.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(24.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(23.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(22.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(21.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(20.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(19.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(18.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(17.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(16.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(15.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(14.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(13.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(12.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(11.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(10.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(9.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(8.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(7.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(6.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(5.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(4.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(3.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(2.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(1.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(0.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -180.000000));
+  path.push_back(Model::Vertex(0.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -185.000000));
+  path.push_back(Model::Vertex(0.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -190.000000));
+  path.push_back(Model::Vertex(0.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -195.000000));
+  path.push_back(Model::Vertex(0.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -200.000000));
+  path.push_back(Model::Vertex(0.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -205.000000));
+  path.push_back(Model::Vertex(0.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -210.000000));
+  path.push_back(Model::Vertex(0.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -215.000000));
+  path.push_back(Model::Vertex(0.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -220.000000));
+  path.push_back(Model::Vertex(0.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -225.000000));
+  path.push_back(Model::Vertex(0.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -230.000000));
+  path.push_back(Model::Vertex(0.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -235.000000));
+  path.push_back(Model::Vertex(0.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -240.000000));
+  path.push_back(Model::Vertex(0.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -245.000000));
+  path.push_back(Model::Vertex(0.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -250.000000));
+  path.push_back(Model::Vertex(0.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -255.000000));
+  path.push_back(Model::Vertex(0.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -260.000000));
+  path.push_back(Model::Vertex(0.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -265.000000));
+  path.push_back(Model::Vertex(0.038504, -42.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -41.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -40.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -39.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -38.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -37.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -36.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -35.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -34.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -33.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -32.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -31.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -30.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -29.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -28.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -27.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -26.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -25.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -24.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -23.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -22.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -21.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -20.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -19.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -18.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -17.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -16.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -15.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -14.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -13.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -12.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -11.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -10.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -9.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+  path.push_back(Model::Vertex(0.038504, -8.763004, 0));
+  path_rot.push_back(Model::Vertex(0, 0, -270.000000));
+}
+
 /*! Sets up the OpenGL environment */
 void setup() {
   glShadeModel(GL_SMOOTH); /* enable smooth shading */
   glEnable(GL_LIGHTING); /* enable lighting */
   // This draws things in order of z depth for the camera
   glEnable(GL_DEPTH_TEST);
+
+  touring = false;
+  setupPath();
 
   main_camera.setTarget(0.0f, 0.0f, 0.0f);
   main_camera.rotate(0.0f, -60.0f, 180.0f);
@@ -1026,14 +2293,14 @@ void setup() {
   Color c = rgb("#87CEFF");
   glClearColor(c.r, c.g, c.b, 1.0f);
 
-  string shelby_model = "shelby.obj";
-  shelby.addModel(shelby_model);
   shelby.moveTo(0, 0, -0.1);
+  ground.addModel("ground.obj");
+  ground.moveTo(0, 0, -0.1);
   // Load the people
   for (int i = 0; i < 9; ++i) {
-    persons.push_back(Person());
+    persons.push_back(Person(i));
     persons.back().load();
-    persons.back().moveTo(i, 0, 0);
+    persons.back().moveTo(i*2.5, i*2.5, 0);
   }
   person = &persons[0];
 }
@@ -1049,6 +2316,7 @@ void display() {
 
   // Draw the environment
   shelby.draw();
+  ground.draw();
   positional_light.apply();
 
   vector<Person>::iterator it = persons.begin();
@@ -1081,9 +2349,22 @@ void OnKeyboardPress(unsigned char key, int x, int y) {
   double travel = 1.0f;
   double rotate = 5.0f;
   GLfloat heading, dx, dy;
+  if (touring) {
+    if (key == 'p') {
+      touring = false;
+      return;
+    }
+    return;
+  }
   switch(key) {
+    case 112: // p
+      person = reinterpret_cast<Person *>(&main_camera);
+      touring_index = 0;
+      touring = true;
+      return;
+      break;
     case 48: // 0
-      // TODO: add the camera here
+      person = reinterpret_cast<Person *>(&main_camera);
       break;
     case 49: // 1
     case 50: // 2
@@ -1101,9 +2382,15 @@ void OnKeyboardPress(unsigned char key, int x, int y) {
       break;
     case 97: // a
       person->rotate(0, 0, rotate);
+      if (detectCollisions((*person))) {
+        person->rotate(0, 0, -rotate);
+      }
       break;
     case 100: // d
       person->rotate(0, 0, -rotate);
+      if (detectCollisions((*person))) {
+        person->rotate(0, 0, rotate);
+      }
       break;
     case 108: // l
       toggleLighting();
@@ -1113,12 +2400,18 @@ void OnKeyboardPress(unsigned char key, int x, int y) {
       dx = travel*cos(heading*degrees_to_radians);
       dy = travel*sin(heading*degrees_to_radians);
       person->move(dx, dy, 0);
+      if (detectCollisions((*person))) {
+        person->move(-dx, -dy, 0);
+      }
       break;
     case 115: // s
       heading = person->getRotation()[2];
       dx = travel*cos(heading*degrees_to_radians);
       dy = travel*sin(heading*degrees_to_radians);
       person->move(-dx, -dy, 0);
+      if (detectCollisions((*person))) {
+        person->move(dx, dy, 0);
+      }
       break;
     case 45: // -
       switch (current_lighting) {
@@ -1153,10 +2446,10 @@ void OnKeyboardPress(unsigned char key, int x, int y) {
       }
       break;
     case 44: // ,
-      main_camera.distance(-1.0);
+      main_camera.distance(1.0);
       break;
     case 46: // .
-      main_camera.distance(1.0);
+      main_camera.distance(-1.0);
       break;
     case 110: // n
       the_sun.toggle();
@@ -1165,6 +2458,10 @@ void OnKeyboardPress(unsigned char key, int x, int y) {
       printf("   Keyboard %c == %d\n", key, key);
       break;
   }
+  GLfloat * position = person->getPosition();
+  GLfloat * rotation = person->getRotation();
+  // printf("path.push_back(Model::Vertex(%f %f 0));\n", position[0], position[1]);
+  // printf("path_rot.push_back(Model::Vertex(0 0 %f));\n", rotation[2]);
   glutPostRedisplay();
 }
 
@@ -1173,24 +2470,39 @@ void OnSpecialKeyboardPress(int key, int x, int y) {
   double travel = 1.0f;
   double rotate = 5.0f;
   GLfloat heading, dx, dy;
+  if (touring) {
+    return;
+  }
   switch (key) {
     case GLUT_KEY_LEFT:
       person->rotate(0, 0, rotate);
+      if (detectCollisions((*person))) {
+        person->rotate(0, 0, -rotate);
+      }
       break;
     case GLUT_KEY_RIGHT:
       person->rotate(0, 0, -rotate);
+      if (detectCollisions((*person))) {
+        person->rotate(0, 0, rotate);
+      }
       break;
     case GLUT_KEY_UP:
       heading = person->getRotation()[2];
       dx = travel*cos(heading*degrees_to_radians);
       dy = travel*sin(heading*degrees_to_radians);
       person->move(dx, dy, 0);
+      if (detectCollisions((*person))) {
+        person->move(-dx, -dy, 0);
+      }
       break;
     case GLUT_KEY_DOWN:
       heading = person->getRotation()[2];
       dx = travel*cos(heading*degrees_to_radians);
       dy = travel*sin(heading*degrees_to_radians);
       person->move(-dx, -dy, 0);
+      if (detectCollisions((*person))) {
+        person->move(dx, dy, 0);
+      }
       break;
     default:
       break;
@@ -1234,6 +2546,21 @@ void onIdle() {
     glutPostRedisplay();
 }
 
+void onTimer(int val) {
+  if (!touring) {
+    glutTimerFunc(100, onTimer, 0);
+    return;
+  }
+  if (touring_index == path.size()) {
+    touring = false;
+    touring_index = 0;
+  }
+  main_camera.setTarget(main_camera);
+  main_camera.moveTo(path[touring_index].x, path[touring_index].y, path[touring_index].z);
+  touring_index++;
+  glutTimerFunc(100, onTimer, 0);
+}
+
 /*! Main function */
 int main(int argc, char *argv[]) {
   // OpenGL setup
@@ -1260,6 +2587,9 @@ int main(int argc, char *argv[]) {
 
   // Setup GLUT idle function
   glutIdleFunc(onIdle);
+
+  // Setup timer function
+  glutTimerFunc(100, onTimer, 0);
 
   display();
 

@@ -4,12 +4,88 @@
 		"selected_items":
 		[
 			[
-				"loa",
-				"loaded_	bool"
+				"m",
+				"mbb	Model::CollisionBox"
+			],
+			[
+				"glVer",
+				"glVertex2fv(const GLfloat *v)	void"
 			],
 			[
 				"di",
-				"disable()	void"
+				"distance	GLfloat"
+			],
+			[
+				"the",
+				"their_position	GLfloat *"
+			],
+			[
+				"person",
+				"person_ptr	Person *"
+			],
+			[
+				"their",
+				"their_obj_it	vector<Model::Object>::iterator"
+			],
+			[
+				"my",
+				"my_obj_it	vector<Model::Object>::iterator"
+			],
+			[
+				"my_mod",
+				"my_model_it	vector<Model>::iterator"
+			],
+			[
+				"thei",
+				"their_model_it	vector<Model>::iterator"
+			],
+			[
+				"iterator",
+				"assign(_InputIterator __first, _InputIterator __last)	void"
+			],
+			[
+				"get",
+				"getPosition()	GLfloat *"
+			],
+			[
+				"lh",
+				"lhs_mbb	Model::CollisionBox"
+			],
+			[
+				"cal",
+				"calculateMBB(Model::Object &obj)	Model::CollisionBox"
+			],
+			[
+				"Col",
+				"CollisionBox	"
+			],
+			[
+				"spo",
+				"spotlight	LightingStyle"
+			],
+			[
+				"main",
+				"main_camera	Camera"
+			],
+			[
+				"pers",
+				"person	Person *"
+			],
+			[
+				"glro",
+				"glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z)	void"
+			],
+			[
+				"glTran",
+				"glTranslatef(GLfloat x, GLfloat y, GLfloat z)	void"
+			],
+			[
+				"she",
+				"shelby_model	string"
+			],
+			[
+				"loa",
+				"loaded_	bool"
 			],
 			[
 				"ena",
@@ -18,10 +94,6 @@
 			[
 				"sp",
 				"specular(GLfloat r, GLfloat g, GLfloat b, GLfloat a)	void"
-			],
-			[
-				"spo",
-				"spot_light	Light"
 			],
 			[
 				"en",
@@ -221,10 +293,10 @@
 	"file_history":
 	[
 		"/Users/william/devel/comp6400/homework6/src/main.cc",
+		"/Users/william/devel/comp6400/homework6/models/shelby.obj",
 		"/Users/william/devel/comp6400/homework6/models/ground.mtl",
 		"/Users/william/devel/comp6400/homework6/homework6.sublime-project",
 		"/Users/william/devel/comp6400/homework6/models/shelby.mtl",
-		"/Users/william/devel/comp6400/homework6/models/shelby.obj",
 		"/Users/william/devel/comp6400/homework6/CMakeLists.txt",
 		"/Users/william/devel/comp6400/homework6/models/shelby.blend",
 		"/Users/william/devel/comp6400/homework6/Makefile",
@@ -361,7 +433,7 @@
 	},
 	"output.exec":
 	{
-		"height": 100.0
+		"height": 258.0
 	},
 	"replace":
 	{

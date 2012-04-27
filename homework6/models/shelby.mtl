@@ -1,15 +1,5 @@
 # Blender MTL File: 'shelby.blend'
-# Material Count: 4
-newmtl Concrete
-Ns 96.078431
-Ka 0.000000 0.000000 0.000000
-Kd 0.343373 0.336899 0.341755
-Ks 0.500000 0.500000 0.500000
-Ni 1.000000
-d 1.000000
-illum 2
-
-
+# Material Count: 3
 newmtl Grass
 Ns 96.078431
 Ka 0.000000 0.000000 0.000000
