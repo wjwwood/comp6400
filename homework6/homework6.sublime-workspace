@@ -4,6 +4,26 @@
 		"selected_items":
 		[
 			[
+				"tour",
+				"toupper(int _c)	int"
+			],
+			[
+				"rotat",
+				"SceneObject::rotateTo(GLfloat roll, GLfloat pitch, GLfloat yaw)	void"
+			],
+			[
+				"tou",
+				"touring_index	size_t"
+			],
+			[
+				"person",
+				"person_mbb	Model::CollisionBox"
+			],
+			[
+				"SE",
+				"SE	Model::CollisionBox"
+			],
+			[
 				"m",
 				"mbb	Model::CollisionBox"
 			],
@@ -18,10 +38,6 @@
 			[
 				"the",
 				"their_position	GLfloat *"
-			],
-			[
-				"person",
-				"person_ptr	Person *"
 			],
 			[
 				"their",
@@ -292,8 +308,10 @@
 	},
 	"file_history":
 	[
-		"/Users/william/devel/comp6400/homework6/src/main.cc",
 		"/Users/william/devel/comp6400/homework6/models/shelby.obj",
+		"/Users/william/devel/comp6400/homework6/models/student.obj",
+		"/Users/william/devel/comp6400/homework6/src/main.cc",
+		"/Users/william/devel/comp6400/homework6/models/ground.obj",
 		"/Users/william/devel/comp6400/homework6/models/ground.mtl",
 		"/Users/william/devel/comp6400/homework6/homework6.sublime-project",
 		"/Users/william/devel/comp6400/homework6/models/shelby.mtl",
@@ -351,7 +369,7 @@
 	},
 	"find_in_files":
 	{
-		"height": 93.0,
+		"height": 0.0,
 		"where_history":
 		[
 			""
@@ -362,6 +380,15 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			" ",
+			"o ",
+			"Cube_Cube.001",
+			"min[2]",
+			"min[1]",
+			"max[2]",
+			"max[1]",
+			"max[0]",
+			"min[0]",
 			"window_width",
 			"800",
 			"•",
@@ -380,6 +407,13 @@
 		"regex": false,
 		"replace_history":
 		[
+			", ",
+			"min.z",
+			"min.y",
+			"max.z",
+			"max.y",
+			"max.x",
+			"min.x",
 			"*"
 		],
 		"reverse": false,
@@ -390,6 +424,11 @@
 	},
 	"groups":
 	[
+		{
+			"sheets":
+			[
+			]
+		},
 		{
 			"sheets":
 			[
@@ -413,11 +452,18 @@
 				0,
 				1,
 				1
+			],
+			[
+				1,
+				0,
+				2,
+				1
 			]
 		],
 		"cols":
 		[
 			0.0,
+			0.61784814072,
 			1.0
 		],
 		"rows":
@@ -427,14 +473,6 @@
 		]
 	},
 	"menu_visible": true,
-	"output.clang":
-	{
-		"height": 100.0
-	},
-	"output.exec":
-	{
-		"height": 258.0
-	},
 	"replace":
 	{
 		"height": 64.0
